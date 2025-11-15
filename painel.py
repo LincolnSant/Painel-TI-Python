@@ -238,87 +238,79 @@ def renovar_ip():
 # --- Gaveta 8: Gerenciar Spooler de Impressão ---
 
 
+# --- Gaveta 8: Gerenciar Spooler de Impressão (VERSÃO CORRIGIDA) ---
 def gerenciar_spooler():
     """Mostra um sub-menu para Iniciar, Parar ou Reiniciar o Spooler."""
-
-    # Esta função só funciona no Windows!
+    
     if os.name != 'nt':
-        console.print(
-            "\n[bold red]ERRO:[/bold red] Esta função está disponível apenas no Windows.")
+        console.print("\n[bold red]ERRO:[/bold red] Esta função está disponível apenas no Windows.")
         return
 
     while True:
-        os.system('cls')  # Limpa a tela para o sub-menu
-        console.print(
-            Rule("[bold cyan]Gerenciador de Spooler de Impressão[/bold cyan]"))
-
+        os.system('cls')
+        console.print(Rule("[bold cyan]Gerenciador de Spooler de Impressão[/bold cyan]"))
+        
         try:
-            # Pega o serviço 'spooler'
-            service = psutil.win_service_get('spooler')
-            status = service.status()  # 'running', 'stopped', etc.
+            # --- CORREÇÃO 1: Usamos psutil.Service() para obter o objeto "controlável" ---
+            service = psutil.Service('spooler')
+            status = service.status()
         except psutil.NoSuchProcess:
-            console.print(
-                "\n[bold red]ERRO:[/bold red] Serviço 'spooler' não encontrado neste PC.")
+            console.print("\n[bold red]ERRO:[/bold red] Serviço 'spooler' não encontrado neste PC.")
             return
 
-        # Mostra o status com cor
         if status == 'running':
             console.print(f"\nStatus Atual: [bold green]Rodando[/bold green]")
         else:
             console.print(f"\nStatus Atual: [bold red]Parado[/bold red]")
-
+            
         console.print("\n[1] Iniciar Serviço")
         console.print("[2] Parar Serviço")
         console.print("[3] Reiniciar Serviço")
         console.print("[4] Voltar ao Menu Principal")
-
+        
         sub_opcao = console.input("\nEscolha uma opção: ").strip()
 
         try:
             if sub_opcao == '1':
                 if status == 'running':
-                    console.print(
-                        "\n[yellow]O serviço já está rodando.[/yellow]")
+                    console.print("\n[yellow]O serviço já está rodando.[/yellow]")
                 else:
                     console.print("\n[yellow]Iniciando spooler...[/yellow]")
-                    service.start()
-
+                    service.start() # Agora .start() vai funcionar
+            
             elif sub_opcao == '2':
                 if status == 'stopped':
-                    console.print(
-                        "\n[yellow]O serviço já está parado.[/yellow]")
+                    console.print("\n[yellow]O serviço já está parado.[/yellow]")
                 else:
                     console.print("\n[yellow]Parando spooler...[/yellow]")
-                    service.stop()
-
+                    service.stop() # E .stop() também
+            
             elif sub_opcao == '3':
                 console.print("\n[yellow]Reiniciando spooler...[/yellow]")
                 if status == 'running':
                     service.stop()
-                    # Espera o serviço parar (timeout de 10 seg)
+                    # Espera o serviço parar
                     service.wait('stopped', timeout=10)
-
+                
                 console.print("Iniciando serviço...")
                 service.start()
                 console.print("[bold green]Serviço reiniciado![/bold green]")
 
             elif sub_opcao == '4':
-                break  # Sai do 'while True' do sub-menu
-
+                break 
+            
             else:
                 console.print("\n[red]Opção inválida.[/red]")
-
+        
         except psutil.AccessDenied:
             console.print("\n[bold red]ERRO: Acesso Negado![/bold red]")
-            console.print(
-                "Você precisa rodar este script como [bold]Administrador[/bold] para gerenciar serviços.")
+            console.print("Lembre-se: Você precisa rodar este script como [bold]Administrador[/bold].")
         except Exception as e:
             console.print(f"\n[bold red]ERRO INESPERADO:[/bold red] {e}")
 
-        # Se apertou 1, 2 ou 3, dá uma pausa para o usuário ler a msg
         if sub_opcao in ['1', '2', '3']:
             time.sleep(2)
-# --- Fim da Gaveta 8 ---
+# --- Fim da Gaveta 8 Corrigida ---
 
 
 # --- Loop Principal ---
