@@ -235,12 +235,10 @@ def renovar_ip():
 
 # --- Fim da gaveta 7 ---
 
+
 # --- Gaveta 8: Gerenciar Spooler de Impressão ---
-
-
-# --- Gaveta 8: Gerenciar Spooler de Impressão (VERSÃO CORRIGIDA) ---
 def gerenciar_spooler():
-    """Mostra um sub-menu para Iniciar, Parar ou Reiniciar o Spooler."""
+    """Mostra um sub-menu para Iniciar, Parar, Reiniciar ou Habilitar o Spooler."""
     
     if os.name != 'nt':
         console.print("\n[bold red]ERRO:[/bold red] Esta função está disponível apenas no Windows.")
@@ -250,67 +248,87 @@ def gerenciar_spooler():
         os.system('cls')
         console.print(Rule("[bold cyan]Gerenciador de Spooler de Impressão[/bold cyan]"))
         
+        status = ""
+        startup_type = ""
         try:
-            # --- CORREÇÃO 1: Usamos psutil.Service() para obter o objeto "controlável" ---
-            service = psutil.Service('spooler')
-            status = service.status()
+            # Pega o serviço 'spooler'
+            service = psutil.win_service_get('spooler')
+            status = service.status() # 'running', 'stopped'
+            # --- NOVO: Lendo o Tipo de Inicialização ---
+            startup_type = service.start_type() # 'automatic', 'manual', 'disabled'
+            
         except psutil.NoSuchProcess:
             console.print("\n[bold red]ERRO:[/bold red] Serviço 'spooler' não encontrado neste PC.")
             return
 
+        # --- NOVO: Status Inteligente ---
+        console.print("\nStatus Atual: ", end="")
         if status == 'running':
-            console.print(f"\nStatus Atual: [bold green]Rodando[/bold green]")
+            console.print(f"[bold green]Rodando[/bold green] (Inicialização: {startup_type})")
+        elif startup_type == 'disabled':
+            console.print(f"[bold red]DESATIVADO[/bold red]") # <<< Agora ele sabe!
         else:
-            console.print(f"\nStatus Atual: [bold red]Parado[/bold red]")
+            console.print(f"[bold yellow]Parado[/bold yellow] (Inicialização: {startup_type})")
             
+        # --- NOVO: Menu com mais opções ---
         console.print("\n[1] Iniciar Serviço")
         console.print("[2] Parar Serviço")
         console.print("[3] Reiniciar Serviço")
-        console.print("[4] Voltar ao Menu Principal")
+        console.print("[4] Habilitar (Definir como Automático)")
+        console.print("[5] Desativar (Proibir inicialização)")
+        console.print("[6] Voltar ao Menu Principal")
         
         sub_opcao = console.input("\nEscolha uma opção: ").strip()
 
-        try:
-            if sub_opcao == '1':
-                if status == 'running':
-                    console.print("\n[yellow]O serviço já está rodando.[/yellow]")
-                else:
-                    console.print("\n[yellow]Iniciando spooler...[/yellow]")
-                    service.start() # Agora .start() vai funcionar
-            
-            elif sub_opcao == '2':
-                if status == 'stopped':
-                    console.print("\n[yellow]O serviço já está parado.[/yellow]")
-                else:
-                    console.print("\n[yellow]Parando spooler...[/yellow]")
-                    service.stop() # E .stop() também
-            
-            elif sub_opcao == '3':
-                console.print("\n[yellow]Reiniciando spooler...[/yellow]")
-                if status == 'running':
-                    service.stop()
-                    # Espera o serviço parar
-                    service.wait('stopped', timeout=10)
-                
-                console.print("Iniciando serviço...")
-                service.start()
-                console.print("[bold green]Serviço reiniciado![/bold green]")
-
-            elif sub_opcao == '4':
-                break 
-            
+        if sub_opcao == '1':
+            if status == 'running':
+                console.print("\n[yellow]O serviço já está rodando.[/yellow]")
+            elif startup_type == 'disabled':
+                console.print("\n[bold red]ERRO:[/bold red] O serviço está Desativado. Use a Opção 4 para Habilitar primeiro.")
             else:
-                console.print("\n[red]Opção inválida.[/red]")
+                console.print("\n[yellow]Iniciando spooler... (net start spooler)[/yellow]")
+                os.system("net start spooler")
         
-        except psutil.AccessDenied:
-            console.print("\n[bold red]ERRO: Acesso Negado![/bold red]")
-            console.print("Lembre-se: Você precisa rodar este script como [bold]Administrador[/bold].")
-        except Exception as e:
-            console.print(f"\n[bold red]ERRO INESPERADO:[/bold red] {e}")
+        elif sub_opcao == '2':
+            if status == 'stopped':
+                console.print("\n[yellow]O serviço já está parado.[/yellow]")
+            else:
+                console.print("\n[yellow]Parando spooler... (net stop spooler)[/yellow]")
+                os.system("net stop spooler")
+        
+        elif sub_opcao == '3':
+            if startup_type == 'disabled':
+                console.print("\n[bold red]ERRO:[/bold red] O serviço está Desativado. Use a Opção 4 para Habilitar primeiro.")
+            else:
+                console.print("\n[yellow]Reiniciando spooler...[/yellow]")
+                os.system("net stop spooler")
+                console.print("Aguardando 2 segundos...")
+                time.sleep(2)
+                os.system("net start spooler")
+                console.print("[bold green]Serviço reiniciado![/bold green]")
+        
+        # --- NOVO: Lógica para Habilitar/Desabilitar ---
+        elif sub_opcao == '4':
+            console.print("\n[yellow]Habilitando o serviço (start= auto)...[/yellow]")
+            # 'sc config' é o comando para alterar a configuração de um serviço
+            os.system("sc config spooler start= auto")
+            console.print("[bold green]Serviço definido como Automático![/bold green] (Tente iniciá-lo agora)")
 
-        if sub_opcao in ['1', '2', '3']:
-            time.sleep(2)
-# --- Fim da Gaveta 8 Corrigida ---
+        elif sub_opcao == '5':
+            console.print("\n[yellow]Desativando o serviço (start= disabled)...[/yellow]")
+            os.system("sc config spooler start= disabled")
+            console.print("[bold red]Serviço Desativado.[/bold red]")
+
+        elif sub_opcao == '6':
+            break # Sai do sub-menu
+        
+        else:
+            console.print("\n[red]Opção inválida.[/red]")
+        
+        # Pausa para o usuário ler o resultado
+        if sub_opcao in ['1', '2', '3', '4', '5']:
+            time.sleep(3) # Aumentei para 3s
+# --- Fim da Gaveta 8 Atualizada ---
 
 
 # --- Loop Principal ---
