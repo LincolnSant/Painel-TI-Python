@@ -1,85 +1,108 @@
 from rich.console import Console
-from rich.panel import Panel # Vamos usar 'Panel' para fazer as caixas!
-import os # Vamos usar para limpar a tela
+from rich.panel import Panel
+import os
+from rich.rule import Rule
+from rich.columns import Columns
+from rich.text import Text
 import psutil
 import shutil
+import time
 
 console = Console()
 
-def desenhar_menu():
-    os.system('cls' if os.name == 'nt' else 'clear') # Limpa a tela
-    
-    console.print(Panel("[bold cyan]Painel Rápido - Auxiliar de TI (Atacado/Varejo)[/bold cyan]", 
-                      title="SysAdmin Helper 1.0", 
-                      style="bold white", 
-                      border_style="cyan"))
 
-    console.print("--- Verificação Rápida ---", style="dim")
-    console.print("[yellow]1)[/yellow] Pingar Servidor Principal (ERP)")
-    console.print("[yellow]2)[/yellow] Pingar Impressora Fiscal (Rede)")
-    console.print("[yellow]3)[/yellow] Pingar PDV 01 (Caixa)")
-    
-    console.print("\n--- Manutenção ---", style="dim")
-    console.print("[yellow]4)[/yellow] Verificar Espaço em Disco (Servidor)")
-    console.print("[yellow]5)[/yellow] Limpar Arquivos Temporários (Local)")
-    
-    console.print("\n[yellow]6)[/yellow] Sair")
-    
+def desenhar_menu():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+    console.print(
+        Rule("[bold cyan]SysAdmin Helper 1.0[/bold cyan]", style="cyan"))
+    console.print(
+        Rule("[bold white]Painel Rápido - Auxiliar de TI (Atacado/Varejo)[/bold white]"))
+
+    # --- CONTEÚDO DA COLUNA 1 ---
+    menu_verificacao = (
+        "[dim]--- Verificação Rápida ---\n"
+        "[yellow]1)[/yellow] Pingar Servidor Principal (ERP)\n"
+        "[yellow]2)[/yellow] Pingar Impressora Fiscal (Rede)\n"
+        "[yellow]3)[/yellow] Pingar PDV 01 (Caixa)\n"
+        "[yellow]4)[/yellow] Ver Meu IP Local"  # <--- NOVO
+    )
+
+    # --- CONTEÚDO DA COLUNA 2 ---
+    menu_manutencao = (
+        "[dim]--- Manutenção ---\n"
+        "[yellow]5)[/yellow] Verificar Espaço em Disco (Servidor)\n"
+        "[yellow]6)[/yellow] Limpar Arquivos Temporários (Local)\n"
+        "[yellow]7)[/yellow] Limpar Cache DNS (flushdns)\n"
+        "[yellow]8)[/yellow] Renovar IP (release/renew)\n"
+        "[yellow]9)[/yellow] Gerenciar Spooler de Impressão\n\n"  # <--- NOVO
+        "[yellow]10)[/yellow] Sair"
+    )
+
+    # --- DESENHA AS COLUNAS ---
+    console.print(Columns([
+        Panel(menu_verificacao, title="VERIFICAR",
+              border_style="green", padding=1),
+        Panel(menu_manutencao, title="MANUTENÇÃO",
+              border_style="red", padding=1)
+    ], expand=True, equal=True))
+
     return console.input("\n[bold]Escolha uma opção: [/bold]")
+# --- Fim do Menu ---
 
 
 # --- Gaveta 1: Pingar Servidor ---
 def pingar_servidor(host, nome_amigavel):
     """Função para pingar um host e mostrar o status."""
-    console.print(f"\n[bold yellow]Pingando {nome_amigavel} ({host})...[/bold yellow]")
-    
-    # Prepara o comando 'ping'
-    # -n 2: Envia 2 pacotes (em vez de 4, para ser mais rápido)
+    console.print(
+        f"\n[bold yellow]Pingando {nome_amigavel} ({host})...[/bold yellow]")
+
     if os.name == 'nt':
-        # Comando para Windows
         comando = f"ping -n 2 {host}"
     else:
-        # Comando para Linux/macOS
         comando = f"ping -c 2 {host}"
-    
-    # Executa o comando no terminal e esconde a saída
+
     resultado = os.system(comando)
-    
-    # Verifica o código de saída
+
     if resultado == 0:
-        console.print(f"\n[bold green]SUCESSO![/bold green] O {nome_amigavel} ({host}) está respondendo.")
+        console.print(
+            f"\n[bold green]SUCESSO![/bold green] O {nome_amigavel} ({host}) está respondendo.")
     else:
-        console.print(f"\n[bold red]FALHA![/bold red] O {nome_amigavel} ({host}) está INACESSÍVEL.")
+        console.print(
+            f"\n[bold red]FALHA![/bold red] O {nome_amigavel} ({host}) está INACESSÍVEL.")
 # --- Fim da Gaveta 1 ---
 
 # --- Gaveta 3: Verificar Espaço em Disco ---
+
+
 def verificar_espaco_disco(caminho):
     """Verifica o espaço em disco de um caminho (ex: 'C:' ou '\\Servidor\Backup')"""
-    console.print(f"\n[bold yellow]Verificando espaço em disco de '{caminho}'...[/bold yellow]")
-    
+    console.print(
+        f"\n[bold yellow]Verificando espaço em disco de '{caminho}'...[/bold yellow]")
+
     try:
         uso = psutil.disk_usage(caminho)
-        
-        # psutil retorna valores em bytes, vamos converter para Gigabytes (GB)
+
         total_gb = uso.total / (1024**3)
         usado_gb = uso.used / (1024**3)
         livre_gb = uso.free / (1024**3)
         percentual_uso = uso.percent
-        
-        # Mostra o resultado formatado
+
         console.print(f"\nCaminho: [bold cyan]{caminho}[/bold cyan]")
         console.print(f"Total: {total_gb:.2f} GB")
         console.print(f"Usado: {usado_gb:.2f} GB")
         console.print(f"Livre: {livre_gb:.2f} GB")
-        
-        # Adiciona uma cor de alerta se o uso estiver alto
+
         if percentual_uso > 85:
-            console.print(f"Percentual de Uso: [bold red]{percentual_uso}% (ALERTA!)[/bold red]")
+            console.print(
+                f"Percentual de Uso: [bold red]{percentual_uso}% (ALERTA!)[/bold red]")
         else:
-            console.print(f"Percentual de Uso: [bold green]{percentual_uso}%[/bold green]")
-            
+            console.print(
+                f"Percentual de Uso: [bold green]{percentual_uso}%[/bold green]")
+
     except FileNotFoundError:
-        console.print(f"\n[bold red]ERRO![/bold red] Caminho não encontrado: '{caminho}'")
+        console.print(
+            f"\n[bold red]ERRO![/bold red] Caminho não encontrado: '{caminho}'")
     except Exception as e:
         console.print(f"\n[bold red]ERRO INESPERADO![/bold red] {e}")
 # --- Fim da Gaveta 3 ---
@@ -88,84 +111,260 @@ def verificar_espaco_disco(caminho):
 # --- Gaveta 4: Limpar Arquivos Temporários ---
 def limpar_temporarios():
     """Apaga os arquivos das pastas temporárias do Windows."""
-    console.print("\n[bold yellow]Iniciando limpeza de arquivos temporários...[/bold yellow]")
-    
-    # Pega o nome de usuário do PC atual (ex: 'linco')
+    console.print(
+        "\n[bold yellow]Iniciando limpeza de arquivos temporários...[/bold yellow]")
+
     usuario = os.getlogin()
-    
-    # Define os caminhos das pastas temporárias
+
     caminhos_temp = [
         r'C:\Windows\Temp',
         rf'C:\Users\{usuario}\AppData\Local\Temp'
     ]
-    
+
     total_arquivos_apagados = 0
-    
+
     for pasta in caminhos_temp:
         console.print(f"\nVerificando pasta: [cyan]{pasta}[/cyan]")
         if not os.path.exists(pasta):
             console.print(f"[dim]Caminho não existe. Pulando...[/dim]")
             continue
 
+        # --- CORREÇÃO 2: Linhas de título coladas aqui foram REMOVIDAS ---
+
         arquivos_apagados = 0
-        # os.listdir() lista tudo (arquivos e subpastas)
         for nome_item in os.listdir(pasta):
             caminho_completo = os.path.join(pasta, nome_item)
-            
+
             try:
-                # Se for um arquivo, apaga
                 if os.path.isfile(caminho_completo):
                     os.remove(caminho_completo)
                     arquivos_apagados += 1
-                # Se for uma pasta, apaga a pasta inteira
                 elif os.path.isdir(caminho_completo):
                     shutil.rmtree(caminho_completo)
                     arquivos_apagados += 1
-                    
+
             except PermissionError:
-                console.print(f"[dim] - Não foi possível apagar '{nome_item}' (em uso).[/dim]")
+                console.print(
+                    f"[dim] - Não foi possível apagar '{nome_item}' (em uso).[/dim]")
             except Exception as e:
-                console.print(f"[red] - Erro ao apagar '{nome_item}': {e}[/red]")
-        
-        console.print(f"[green]>>> {arquivos_apagados} itens removidos de '{pasta}'.[/green]")
+                console.print(
+                    f"[red] - Erro ao apagar '{nome_item}': {e}[/red]")
+
+        console.print(
+            f"[green]>>> {arquivos_apagados} itens removidos de '{pasta}'.[/green]")
         total_arquivos_apagados += arquivos_apagados
 
-    console.print(f"\n[bold green]LIMPEZA CONCLUÍDA![/bold green] Total de {total_arquivos_apagados} itens removidos.")
+    console.print(
+        f"\n[bold green]LIMPEZA CONCLUÍDA![/bold green] Total de {total_arquivos_apagados} itens removidos.")
 # --- Fim da Gaveta 4 ---
+
+
+# --- Gaveta 5: Ver IP Local ---
+def ver_meu_ip():
+    """Mostra os endereços IPv4 locais usando psutil."""
+    console.print(
+        "\n[bold yellow]Verificando Endereços IP Locais...[/bold yellow]")
+
+    try:
+        # Pega todas as interfaces de rede
+        interfaces = psutil.net_if_addrs()
+        encontrou = False
+
+        for nome_iface, addrs in interfaces.items():
+            # Pula interfaces de "mentira" (Loopback e virtuais)
+            if "Loopback" in nome_iface or "VMware" in nome_iface or "VirtualBox" in nome_iface:
+                continue
+
+            # Procura pelos endereços IPv4 (cujo 'family' é 2)
+            ipv4_addrs = [addr for addr in addrs if addr.family == 2]
+
+            if ipv4_addrs:
+                encontrou = True
+                console.print(
+                    f"\nInterface: [bold cyan]{nome_iface}[/bold cyan]")
+                for addr in ipv4_addrs:
+                    console.print(
+                        f"  [green]IPv4:[/green] {addr.address} (Máscara: {addr.netmask})")
+
+        if not encontrou:
+            console.print(
+                "\n[red]Nenhum adaptador de rede IPv4 ativo encontrado.[/red]")
+
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO AO LER IPS:[/bold red] {e}")
+
+# --- Fim da gaveta 5 ---
+
+
+# --- Gaveta 6: Limpar DNS ---
+def limpar_cache_dns():
+    """Roda 'ipconfig /flushdns' no Windows."""
+    console.print("\n[bold yellow]Limpando o cache DNS...[/bold yellow]")
+
+    if os.name == 'nt':  # 'nt' é o Windows
+        resultado = os.system("ipconfig /flushdns")
+        if resultado == 0:
+            console.print(
+                "\n[bold green]SUCESSO![/bold green] O cache DNS foi limpo.")
+        else:
+            console.print(
+                "\n[bold red]FALHA![/bold red] Não foi possível limpar o cache.")
+    else:
+        console.print(
+            "\n[bold red]ERRO:[/bold red] Este comando só funciona no Windows.")
+# --- Fim da gaveta 6 ---
+
+
+# --- Gaveta 7: Renovar IP ---
+def renovar_ip():
+    """Roda 'ipconfig /release' e '/renew' no Windows."""
+    if os.name == 'nt':
+        console.print(
+            "\n[bold yellow]Liberando o IP (release)...[/bold yellow]")
+        os.system("ipconfig /release")
+
+        console.print("\n[bold yellow]Renovando o IP (renew)...[/bold yellow]")
+        os.system("ipconfig /renew")
+
+        console.print(
+            "\n[bold green]SUCESSO![/bold green] Processo de renovação de IP concluído.")
+        console.print("Verifique sua conexão.")
+    else:
+        console.print(
+            "\n[bold red]ERRO:[/bold red] Este comando só funciona no Windows.")
+
+# --- Fim da gaveta 7 ---
+
+# --- Gaveta 8: Gerenciar Spooler de Impressão ---
+
+
+def gerenciar_spooler():
+    """Mostra um sub-menu para Iniciar, Parar ou Reiniciar o Spooler."""
+
+    # Esta função só funciona no Windows!
+    if os.name != 'nt':
+        console.print(
+            "\n[bold red]ERRO:[/bold red] Esta função está disponível apenas no Windows.")
+        return
+
+    while True:
+        os.system('cls')  # Limpa a tela para o sub-menu
+        console.print(
+            Rule("[bold cyan]Gerenciador de Spooler de Impressão[/bold cyan]"))
+
+        try:
+            # Pega o serviço 'spooler'
+            service = psutil.win_service_get('spooler')
+            status = service.status()  # 'running', 'stopped', etc.
+        except psutil.NoSuchProcess:
+            console.print(
+                "\n[bold red]ERRO:[/bold red] Serviço 'spooler' não encontrado neste PC.")
+            return
+
+        # Mostra o status com cor
+        if status == 'running':
+            console.print(f"\nStatus Atual: [bold green]Rodando[/bold green]")
+        else:
+            console.print(f"\nStatus Atual: [bold red]Parado[/bold red]")
+
+        console.print("\n[1] Iniciar Serviço")
+        console.print("[2] Parar Serviço")
+        console.print("[3] Reiniciar Serviço")
+        console.print("[4] Voltar ao Menu Principal")
+
+        sub_opcao = console.input("\nEscolha uma opção: ").strip()
+
+        try:
+            if sub_opcao == '1':
+                if status == 'running':
+                    console.print(
+                        "\n[yellow]O serviço já está rodando.[/yellow]")
+                else:
+                    console.print("\n[yellow]Iniciando spooler...[/yellow]")
+                    service.start()
+
+            elif sub_opcao == '2':
+                if status == 'stopped':
+                    console.print(
+                        "\n[yellow]O serviço já está parado.[/yellow]")
+                else:
+                    console.print("\n[yellow]Parando spooler...[/yellow]")
+                    service.stop()
+
+            elif sub_opcao == '3':
+                console.print("\n[yellow]Reiniciando spooler...[/yellow]")
+                if status == 'running':
+                    service.stop()
+                    # Espera o serviço parar (timeout de 10 seg)
+                    service.wait('stopped', timeout=10)
+
+                console.print("Iniciando serviço...")
+                service.start()
+                console.print("[bold green]Serviço reiniciado![/bold green]")
+
+            elif sub_opcao == '4':
+                break  # Sai do 'while True' do sub-menu
+
+            else:
+                console.print("\n[red]Opção inválida.[/red]")
+
+        except psutil.AccessDenied:
+            console.print("\n[bold red]ERRO: Acesso Negado![/bold red]")
+            console.print(
+                "Você precisa rodar este script como [bold]Administrador[/bold] para gerenciar serviços.")
+        except Exception as e:
+            console.print(f"\n[bold red]ERRO INESPERADO:[/bold red] {e}")
+
+        # Se apertou 1, 2 ou 3, dá uma pausa para o usuário ler a msg
+        if sub_opcao in ['1', '2', '3']:
+            time.sleep(2)
+# --- Fim da Gaveta 8 ---
 
 
 # --- Loop Principal ---
 while True:
     opcao = desenhar_menu()
-    
+
     if opcao == '1':
-        # Você pode trocar '192.168.0.1' pelo IP real do seu servidor
         pingar_servidor('8.8.8.8', 'Servidor Principal (ERP)')
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
-    
+
     elif opcao == '2':
-        # Vamos fazer o mesmo para a impressora
-        pingar_servidor('192.168.0.100', 'Impressora Fiscal') # Troque pelo IP da impressora
+        pingar_servidor('192.168.0.100', 'Impressora Fiscal')  # Trocar o IP
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '3':
-        pingar_servidor('192.168.0.101', 'PDV 01 (Caixa)') # Troque pelo IP do PDV
+        pingar_servidor('192.168.0.101', 'PDV 01 (Caixa)')  # Trocar o IP
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '4':
-        # Você pode checar o C: local ou o caminho do servidor (ex: '\\Servidor\Dados')
-        verificar_espaco_disco('C:') 
+        ver_meu_ip()
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
-        
+
     elif opcao == '5':
+        verificar_espaco_disco('C:')
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '6':
         limpar_temporarios()
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
-        
-    elif opcao == '6':
+
+    elif opcao == '7':
+        limpar_cache_dns()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '8':
+        renovar_ip()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '9':
+        gerenciar_spooler()
+
+    elif opcao == '10':
         break
-        
+
     else:
         console.print("\n[red]Opção inválida![/red]")
         console.input("Pressione Enter para voltar...")
 
-print("Programa finalizado!")
+print("\nPrograma finalizado!")
