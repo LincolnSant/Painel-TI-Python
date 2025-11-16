@@ -2,66 +2,102 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.columns import Columns
+from rich.table import Table 
 import os
 import psutil
 import shutil
 import time
 import datetime
 import wmi
+import socket 
 
 console = Console()
 
 # --- MAPA DE REDE (A "agenda" de IPs) ---
-# CORREÇÃO 2: Movido para fora do loop, para o topo.
 DISPOSITIVOS = {
     "servidor": {"ip": "8.8.8.8", "nome": "Servidor Principal (ERP)"},
-    "impressora_fiscal": {"ip": "192.168.0.100", "nome": "Impressora Fiscal"},
+    "imp_fiscal1": {"ip": "192.168.0.100", "nome": "Impressora Fiscal 1 (Frente Loja)"},
+    "imp_padaria": {"ip": "192.168.0.105", "nome": "Impressora 2 (Padaria)"},
     "pdv1": {"ip": "192.168.0.101", "nome": "PDV 01 (Caixa)"},
-    # Adicione mais PDVs aqui!
-    # "pdv2": {"ip": "192.168.0.102", "nome": "PDV 02 (Padaria)"},
+    "pdv2": {"ip": "192.168.0.102", "nome": "PDV 02 (Caixa)"},
+    "pdv_padaria": {"ip": "192.168.0.120", "nome": "PDV (Padaria)"},
 }
 # ----------------------------------------
 
-# --- GAVETA DO MENU (CORRIGIDA) ---
-
-
+# --- GAVETA DO MENU (ATUALIZADA) ---
 def desenhar_menu():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-    # CORREÇÃO 1: Usando o layout de Rule e Columns
-    console.print(
-        Rule("[bold cyan]SysAdmin Helper 1.0[/bold cyan]", style="cyan"))
-    console.print(
-        Rule("[bold white]Painel Rápido - Auxiliar de TI (Atacado/Varejo)[/bold white]"))
+    os.system('cls' if os.name == 'nt' else 'clear') 
+    
+    console.print(Rule("[bold cyan]SysAdmin Helper 2.1[/bold cyan]", style="cyan"))
+    console.print(Rule("[bold white]Painel Rápido - Auxiliar de TI (Atacado/Varejo)[/bold white]"))
 
     menu_verificacao = (
         "[dim]--- Verificação Rápida ---\n"
-        "[yellow]1)[/yellow] Pingar Servidor Principal (ERP)\n"
-        "[yellow]2)[/yellow] Pingar Impressora Fiscal (Rede)\n"
-        "[yellow]3)[/yellow] Pingar um PDV (Específico)\n"  # Nome atualizado
-        "[yellow]4)[/yellow] Ver Meu IP Local"
+        "[bold cyan]0) CHECK-UP GERAL DA LOJA[/bold cyan]\n" 
+        "[yellow]1)[/yellow] Pingar Servidor Principal\n"
+        "[yellow]2)[/yellow] Pingar uma Impressora (Específica)\n"
+        "[yellow]3)[/yellow] Pingar um PDV (Específico)\n" 
+        "[yellow]4)[/yellow] Status do Meu PC (IP/CPU/RAM)\n"
+        "[yellow]5)[/yellow] Testar Porta Específica (Firewall)\n"
+        "[yellow]6)[/yellow] Monitor de Processos Ativos" 
     )
 
     menu_manutencao = (
         "[dim]--- Manutenção ---\n"
-        "[yellow]5)[/yellow] Verificar Espaço em Disco\n"  # Nome atualizado
-        "[yellow]6)[/yellow] Limpar Arquivos Temporários (Local)\n"
-        "[yellow]7)[/yellow] Limpar Cache DNS (flushdns)\n"
-        "[yellow]8)[/yellow] Renovar IP (release/renew)\n"
-        "[yellow]9)[/yellow] Gerenciar Spooler de Impressão\n\n"
-        "[yellow]10)[/yellow] Sair"
+        "[yellow]7)[/yellow] Verificar Espaço em Disco\n" 
+        "[yellow]7)[/yellow] Limpar Arquivos Temporários\n"
+        "[yellow]8)[/yellow] Limpar Cache DNS (flushdns)\n"
+        "[yellow]9)[/yellow] Renovar IP (release/renew)\n"
+        "[yellow]10)[/yellow] Gerenciar Spooler de Impressão\n"
+        "[yellow]11)[/yellow] Ver Conexões Ativas (Rápido)\n" 
+        "[yellow]12)[/yellow] Ver Conexões (com Nomes) (Lento)\n\n"
+        "[yellow]13)[/yellow] Sair" 
     )
 
     console.print(Columns([
-        Panel(menu_verificacao, title="VERIFICAR",
-              border_style="green", padding=1),
-        Panel(menu_manutencao, title="MANUTENÇÃO",
-              border_style="red", padding=1)
-    ], expand=True, equal=True))
+        Panel(menu_verificacao, title="VERIFICAR", border_style="green", padding=1),
+        Panel(menu_manutencao, title="MANUTENÇÃO", border_style="red", padding=1)
+    ], expand=True, equal=True)) 
 
     return console.input("\n[bold]Escolha uma opção: [/bold]")
 # --- Fim do Menu ---
 
+# --- GAVETA 0: Check-up Geral ---
+def checkup_geral():
+    """Roda um ping em TODOS os dispositivos cadastrados no MAPA DE REDE."""
+    console.print(Rule("[bold cyan]Iniciando Check-up Geral da Loja[/bold cyan]"))
+    
+    tabela_status = Table(title="Status da Rede", border_style="dim")
+    tabela_status.add_column("Dispositivo", style="cyan", width=30)
+    tabela_status.add_column("IP", style="magenta", width=15)
+    tabela_status.add_column("Status", style="white")
+
+    falhas = 0
+    
+    for chave, dispositivo in DISPOSITIVOS.items():
+        ip = dispositivo['ip']
+        nome = dispositivo['nome']
+        
+        console.print(f"\n[yellow]Testando:[/yellow] {nome} ({ip})...")
+        
+        comando_ping = f"ping -n 2 {ip}" if os.name == 'nt' else f"ping -c 2 {ip}"
+        
+        resultado = os.system(f"{comando_ping} > {os.devnull} 2>&1")
+        
+        if resultado == 0:
+            tabela_status.add_row(nome, ip, "[bold green]ONLINE[/bold green]")
+        else:
+            tabela_status.add_row(nome, ip, "[bold red]FALHA[/bold red]")
+            falhas += 1
+
+    console.print(Rule("[bold cyan]Relatório do Check-up[/bold cyan]"))
+    console.print(tabela_status)
+    
+    if falhas > 0:
+        console.print(f"\n[bold red]ATENÇÃO:[/bold red] {falhas} dispositivo(s) estão offline!")
+    else:
+        console.print(f"\n[bold green]Tudo Certo![/bold green] Todos os dispositivos críticos estão online.")
+# --- Fim da Gaveta 0 ---
 
 # --- Gaveta 1: Pingar Servidor ---
 def pingar_servidor(host, nome_amigavel):
@@ -73,7 +109,7 @@ def pingar_servidor(host, nome_amigavel):
         comando = f"ping -n 2 {host}"
     else:
         comando = f"ping -c 2 {host}"
-    resultado = os.system(comando)
+    resultado = os.system(comando) 
 
     if resultado == 0:
         console.print(
@@ -83,9 +119,78 @@ def pingar_servidor(host, nome_amigavel):
             f"\n[bold red]FALHA![/bold red] O {nome_amigavel} ({host}) está INACESSÍVEL.")
 # --- Fim da Gaveta 1 ---
 
-# --- Gaveta 2: Verificar Espaço em Disco ---
+# --- GAVETA MESTRA: Pingar por Tipo ---
+def pingar_dispositivo_por_tipo(prefixo_chave, tipo_nome):
+    """Filtra o mapa DISPOSITIVOS e mostra um sub-menu para pingar."""
+    console.print(f"\n--- Pingar {tipo_nome} Específico ---")
+    
+    lista_filtrada = {}
+    for chave, dispositivo in DISPOSITIVOS.items():
+        if chave.startswith(prefixo_chave):
+            lista_filtrada[chave] = dispositivo
+    
+    if not lista_filtrada:
+        console.print(
+            f"[red]Nenhum dispositivo do tipo '{tipo_nome}' cadastrado no mapa.[/red]")
+        return
 
+    console.print(f"[dim]Dispositivos '{tipo_nome}' disponíveis:[/dim]")
+    for chave, dev in lista_filtrada.items():
+        console.print(
+            f"  - [bold cyan]{chave}[/bold cyan]: {dev['nome']} ({dev['ip']})")
 
+    chave_escolhida = console.input(
+        f"\nDigite a Chave do {tipo_nome} (ex: {list(lista_filtrada.keys())[0]}): ").strip()
+    
+    if chave_escolhida in lista_filtrada:
+        dispositivo = lista_filtrada[chave_escolhida]
+        pingar_servidor(dispositivo['ip'], dispositivo['nome'])
+    else:
+        console.print(
+            f"\n[bold red]ERRO: Chave '{chave_escolhida}' não encontrada![/bold red]")
+# --- Fim da Gaveta Mestra ---
+
+# --- GAVETA 5: Testar Porta ---
+def testar_porta():
+    """Tenta conectar a uma porta TCP específica em um host."""
+    console.print(
+        Rule("[bold cyan]Teste de Conexão de Porta (TCP)[/bold cyan]"))
+    
+    host = console.input("Digite o IP do alvo (ex: 192.168.0.10): ").strip()
+    
+    try:
+        porta = int(console.input(
+            "Digite a Porta TCP (ex: 1433 para SQL, 3389 para RDP): ").strip())
+        if not (1 <= porta <= 65535):
+            raise ValueError
+    except ValueError:
+        console.print(
+            "[red]ERRO: Porta inválida. Digite um número de 1 a 65535.[/red]")
+        return
+
+    console.print(
+        f"\n[yellow]Testando conexão com {host} na porta {porta}...[/yellow]")
+    
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(3) 
+    
+    try:
+        s.connect((host, porta))
+        console.print(
+            f"\n[bold green]SUCESSO![/bold green] A porta {porta} está ABERTA em {host}.")
+        
+    except socket.timeout:
+        console.print(
+            f"\n[bold red]FALHA (Timeout).[/bold red] O host {host} não respondeu na porta {porta} (provavelmente bloqueada).")
+    except socket.error as e:
+        console.print(
+            f"\n[bold red]FALHA (Erro).[/bold red] A conexão foi recusada.")
+        console.print(f"[dim]Erro: {e}[/dim]")
+    finally:
+        s.close()
+# --- Fim da Gaveta 5 ---
+
+# --- Gaveta 6: Verificar Espaço em Disco ---
 def verificar_espaco_disco(caminho):
     """Verifica o espaço em disco de um caminho (ex: 'C:' ou '\\Servidor\Backup')"""
     console.print(
@@ -113,27 +218,39 @@ def verificar_espaco_disco(caminho):
             f"\n[bold red]ERRO![/bold red] Caminho não encontrado: '{caminho}'")
     except Exception as e:
         console.print(f"\n[bold red]ERRO INESPERADO![/bold red] {e}")
-# --- Fim da Gaveta 2 ---
+# --- Fim da Gaveta 6 ---
 
 
-# --- Gaveta 3: Limpar Arquivos Temporários ---
-def limpar_temporarios():
-    """Apaga os arquivos das pastas temporárias do Windows."""
+# --- Gaveta 7: Limpar Arquivos Temporários ---
+def limpar_temporarios(caminho_base):
+    """Apaga os arquivos temporários de um caminho base (local ou remoto)."""
     console.print(
-        "\n[bold yellow]Iniciando limpeza de arquivos temporários...[/bold yellow]")
+        f"\n[bold yellow]Iniciando limpeza em '{caminho_base}'...[/bold yellow]")
 
-    if os.name != 'nt':
-        console.print(
-            "\n[bold red]ERRO:[/bold red] Esta função só funciona no Windows.")
-        return
+    usuario = ""
+    if caminho_base.startswith(r'\\'):
+        usuario = console.input(
+            "Qual o nome da pasta de usuário nessa máquina? (ex: Beatriz): ").strip()
+        if not usuario:
+            console.print(
+                "[red]Nome de usuário é necessário para limpar a pasta de perfil. Pulando...[/red]")
+            caminhos_temp = [
+                os.path.join(caminho_base, 'Windows', 'Temp')
+            ]
+        else:
+            caminhos_temp = [
+                os.path.join(caminho_base, 'Windows', 'Temp'),
+                os.path.join(caminho_base, 'Users', usuario,
+                             'AppData', 'Local', 'Temp')
+            ]
+    else:
+        usuario = os.getlogin()
+        caminhos_temp = [
+            r'C:\Windows\Temp',
+            rf'C:\Users\{usuario}\AppData\Local\Temp'
+        ]
 
-    usuario = os.getlogin()
-    caminhos_temp = [
-        r'C:\Windows\Temp',
-        rf'C:\Users\{usuario}\AppData\Local\Temp'
-    ]
     total_arquivos_apagados = 0
-
     for pasta in caminhos_temp:
         console.print(f"\nVerificando pasta: [cyan]{pasta}[/cyan]")
         if not os.path.exists(pasta):
@@ -155,45 +272,37 @@ def limpar_temporarios():
             except Exception as e:
                 console.print(
                     f"[red] - Erro ao apagar '{nome_item}': {e}[/red]")
-        console.print(
-            f"[green]>>> {arquivos_apagados} itens removidos de '{pasta}'.[/green]")
+        if arquivos_apagados > 0:
+            console.print(
+                f"[green]>>> {arquivos_apagados} itens removidos de '{pasta}'.[/green]")
+        else:
+            console.print(
+                f"[yellow]Nenhum item removido (ou pasta já estava limpa).[/yellow]")
         total_arquivos_apagados += arquivos_apagados
-
     console.print(
         f"\n[bold green]LIMPEZA CONCLUÍDA![/bold green] Total de {total_arquivos_apagados} itens removidos.")
-# --- Fim da Gaveta 3 ---
+# --- Fim da Gaveta 7 ---
 
 
-
-# --- Gaveta 4: Ver IP Local (VERSÃO FINAL COM WMI) ---
-def ver_meu_ip():
-    """Mostra os endereços IPv4 locais e o Gateway Padrão."""
+# --- Gaveta 4: Ver Status do PC Local ---
+def verificar_sistema_local():
+    """Mostra IP, Gateway, CPU e RAM da máquina local."""
     console.print(
-        "\n[bold yellow]Verificando Endereços IP Locais e Gateway...[/bold yellow]")
-
+        "\n[bold yellow]Verificando Status do Sistema Local...[/bold yellow]")
     try:
-        # --- 1. Encontrar o Gateway Padrão (com WMI) ---
-        c = wmi.WMI() # Conecta ao Windows Management Instrumentation
-        
-        # Procura na tabela de roteamento pelo "portão" principal (Destino 0.0.0.0)
+        c = wmi.WMI()
         query = "SELECT * FROM Win32_IP4RouteTable WHERE Destination = '0.0.0.0' AND Mask = '0.0.0.0'"
         gateways = c.query(query)
-        
-        gateway_ip = None
-        if gateways:
-            gateway_ip = gateways[0].NextHop # Pega o primeiro resultado
-
+        gateway_ip = gateways[0].NextHop if gateways else None
         if gateway_ip:
-            console.print(f"\n[bold green]Gateway Padrão (Roteador):[/bold green] {gateway_ip}")
+            console.print(
+                f"\n[bold green]Gateway Padrão (Roteador):[/bold green] {gateway_ip}")
         else:
-            console.print("\n[bold red]Gateway Padrão NÃO ENCONTRADO.[/bold red]")
-        
-        console.print("---") # Linha separadora
-
-        # --- 2. Encontrar os IPs Locais (com psutil, isso já funciona) ---
+            console.print(
+                "\n[bold red]Gateway Padrão NÃO ENCONTRADO.[/bold red]")
+        console.print("---")
         interfaces = psutil.net_if_addrs()
         encontrou_ip = False
-
         for nome_iface, addrs in interfaces.items():
             if "Loopback" in nome_iface or "VMware" in nome_iface or "VirtualBox" in nome_iface:
                 continue
@@ -208,19 +317,33 @@ def ver_meu_ip():
         if not encontrou_ip:
             console.print(
                 "\n[red]Nenhum adaptador de rede IPv4 ativo encontrado.[/red]")
-                
     except Exception as e:
-        # Se o WMI falhar (ex: rodando sem ser admin), ele vai dar um erro aqui
         console.print(f"\n[bold red]ERRO AO LER REDE:[/bold red] {e}")
-        console.print("[dim]Dica: Tente rodar como Administrador para ver o Gateway.[/dim]")
+    try:
+        console.print(Rule(style="dim"))
+        console.print("[bold yellow]Verificando CPU e RAM...[/bold yellow]")
+        cpu_uso = psutil.cpu_percent(interval=1)
+        ram = psutil.virtual_memory()
+        ram_total_gb = ram.total / (1024**3)
+        ram_usada_gb = ram.used / (1024**3)
+        ram_percent = ram.percent
+        if cpu_uso > 85:
+            console.print(
+                f"Uso da CPU: [bold red]{cpu_uso}% (ALERTA!)[/bold red]")
+        else:
+            console.print(f"Uso da CPU: [bold green]{cpu_uso}%[/bold green]")
+        console.print(
+            f"Uso de RAM: [bold cyan]{ram_usada_gb:.2f} GB[/bold cyan] / {ram_total_gb:.2f} GB ({ram_percent}%)")
+        if ram_percent > 85:
+            console.print("[bold red](ALERTA: Memória RAM alta!)[/bold red]")
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO AO LER CPU/RAM:[/bold red] {e}")
 # --- Fim da Gaveta 4 ---
 
 
-# --- Gaveta 5: Limpar DNS ---
+# --- Gaveta 8: Limpar DNS ---
 def limpar_cache_dns():
-    """Roda 'ipconfig /flushdns' no Windows."""
     console.print("\n[bold yellow]Limpando o cache DNS...[/bold yellow]")
-
     if os.name == 'nt':
         resultado = os.system("ipconfig /flushdns")
         if resultado == 0:
@@ -232,12 +355,11 @@ def limpar_cache_dns():
     else:
         console.print(
             "\n[bold red]ERRO:[/bold red] Este comando só funciona no Windows.")
-# --- Fim da Gaveta 5 ---
+# --- Fim da Gaveta 8 ---
 
 
-# --- Gaveta 6: Renovar IP ---
+# --- Gaveta 9: Renovar IP ---
 def renovar_ip():
-    """Roda 'ipconfig /release' e '/renew' no Windows."""
     if os.name == 'nt':
         console.print(
             "\n[bold yellow]Liberando o IP (release)...[/bold yellow]")
@@ -250,15 +372,14 @@ def renovar_ip():
     else:
         console.print(
             "\n[bold red]ERRO:[/bold red] Este comando só funciona no Windows.")
-# --- Fim da Gaveta 6 ---
+# --- Fim da Gaveta 9 ---
 
 
-# --- Gaveta 7: Limpar Fila de Impressão ---
+# --- Gaveta 10: Limpar Fila de Impressão ---
 def limpar_fila_impressao():
     console.print(
         "\n[bold yellow]Tentando limpar a fila de impressão (pasta PRINTERS)...[/bold yellow]")
     caminho_spool = r'C:\Windows\System32\spool\PRINTERS'
-
     if not os.path.exists(caminho_spool):
         console.print(
             f"[red]ERRO: Caminho '{caminho_spool}' não encontrado.[/red]")
@@ -278,7 +399,6 @@ def limpar_fila_impressao():
             except Exception:
                 console.print(
                     f"[dim] - Não foi possível apagar '{arquivo}' (em uso/permissão).[/dim]")
-
         if apagados > 0:
             console.print(
                 f"\n[bold green]SUCESSO![/bold green] {apagados} trabalhos removidos da fila.")
@@ -289,23 +409,19 @@ def limpar_fila_impressao():
         console.print("\n[bold red]ERRO: Acesso Negado![/bold red]")
     except Exception as e:
         console.print(f"\n[bold red]ERRO INESPERADO:[/bold red] {e}")
-# --- Fim da Gaveta 7 ---
+# --- Fim da Gaveta 10 ---
 
 
-# --- Gaveta 8: Gerenciar Spooler de Impressão ---
+# --- Gaveta 11: Gerenciar Spooler de Impressão ---
 def gerenciar_spooler():
-    """Mostra um sub-menu para Iniciar, Parar, Reiniciar ou Habilitar o Spooler."""
-
     if os.name != 'nt':
         console.print(
             "\n[bold red]ERRO:[/bold red] Esta função está disponível apenas no Windows.")
         return
-
     while True:
         os.system('cls')
         console.print(
             Rule("[bold cyan]Gerenciador de Spooler de Impressão[/bold cyan]"))
-
         status = ""
         startup_type = ""
         try:
@@ -316,7 +432,6 @@ def gerenciar_spooler():
             console.print(
                 "\n[bold red]ERRO:[/bold red] Serviço 'spooler' não encontrado neste PC.")
             return
-
         console.print("\nStatus Atual: ", end="")
         if status == 'running':
             console.print(
@@ -326,17 +441,13 @@ def gerenciar_spooler():
         else:
             console.print(
                 f"[bold yellow]Parado[/bold yellow] (Inicialização: {startup_type})")
-
         console.print("\n[1] Iniciar Serviço")
-        console.print("[2] Parar Serviço (Manutenção)")  # Texto atualizado
-        # Texto atualizado
+        console.print("[2] Parar Serviço (Manutenção)")
         console.print("[3] Reiniciar Serviço (Limpar fila)")
         console.print("[4] Habilitar (Definir como Automático)")
         console.print("[5] Desativar (Proibir inicialização)")
         console.print("[6] Voltar ao Menu Principal")
-
         sub_opcao = console.input("\nEscolha uma opção: ").strip()
-
         if sub_opcao == '1':
             if status == 'running':
                 console.print("\n[yellow]O serviço já está rodando.[/yellow]")
@@ -347,8 +458,6 @@ def gerenciar_spooler():
                 console.print(
                     "\n[yellow]Iniciando spooler... (net start spooler)[/yellow]")
                 os.system("net start spooler")
-
-        # CORREÇÃO 3: Opção 2 NÃO limpa mais a fila
         elif sub_opcao == '2':
             if status == 'stopped':
                 console.print("\n[yellow]O serviço já está parado.[/yellow]")
@@ -356,7 +465,6 @@ def gerenciar_spooler():
                 console.print(
                     "\n[yellow]Parando spooler... (net stop spooler)[/yellow]")
                 os.system("net stop spooler")
-
         elif sub_opcao == '3':
             if startup_type == 'disabled':
                 console.print(
@@ -365,24 +473,20 @@ def gerenciar_spooler():
                 console.print("\n[yellow]Reiniciando spooler...[/yellow]")
                 os.system("net stop spooler")
                 time.sleep(1)
-                # Pergunta só no Reiniciar
                 limpar = console.input(
                     "Deseja também limpar a fila de trabalhos presos? (S/N): ").upper().strip()
                 if limpar == 'S' or limpar == 'SIM':
                     limpar_fila_impressao()
-
                 console.print("Aguardando 2 segundos...")
                 time.sleep(2)
                 os.system("net start spooler")
                 console.print("[bold green]Serviço reiniciado![/bold green]")
-
         elif sub_opcao == '4':
             console.print(
                 "\n[yellow]Habilitando o serviço (start= auto)...[/yellow]")
             os.system("sc config spooler start= auto")
             console.print(
                 "[bold green]Serviço definido como Automático![/bold green]")
-
         elif sub_opcao == '5':
             console.print(
                 "\n[yellow]Desativando o serviço (start= disabled)...[/yellow]")
@@ -391,77 +495,218 @@ def gerenciar_spooler():
                     "[dim] - Serviço está rodando. Parando ele primeiro (net stop spooler)...[/dim]")
                 os.system("net stop spooler")
                 time.sleep(1)
-
             os.system("sc config spooler start= disabled")
             console.print(
                 "[bold red]Serviço Desativado com sucesso![/bold red]")
-
         elif sub_opcao == '6':
             break
-
         else:
             console.print("\n[red]Opção inválida.[/red]")
-
         if sub_opcao in ['1', '2', '3', '4', '5']:
             time.sleep(3)
-# --- Fim da Gaveta 8 ---
+# --- Fim da Gaveta 11 ---
+
+# --- Gaveta 12: Ver Conexões Ativas (Netstat) ---
+def ver_conexoes_rede():
+    """Mostra as conexões de rede ativas (como 'netstat')"""
+    console.print(
+        Rule("[bold cyan]Conexões de Rede Ativas (netstat)[/bold cyan]"))
+    try:
+        conexoes = psutil.net_connections(
+            kind='tcp') 
+        tabela = Table(title="Conexões TCP Ativas", border_style="dim")
+        tabela.add_column("Endereço Local", style="cyan")
+        tabela.add_column("Porta Local", style="yellow")
+        tabela.add_column("Endereço Remoto", style="magenta")
+        tabela.add_column("Porta Remota", style="yellow")
+        tabela.add_column("Status", style="green")
+        if not conexoes:
+            console.print("[dim]Nenhuma conexão TCP ativa encontrada.[/dim]")
+            return
+        for conn in conexoes:
+            ip_local, porta_local = conn.laddr if conn.laddr else ("*", "*")
+            ip_remoto, porta_remota = conn.raddr if conn.raddr else ("*", "*")
+            tabela.add_row(
+                str(ip_local),
+                str(porta_local),
+                str(ip_remoto),
+                str(porta_remota),
+                str(conn.status)
+            )
+        console.print(tabela)
+    except psutil.AccessDenied:
+        console.print("\n[bold red]ERRO: Acesso Negado![/bold red]")
+        console.print(
+            "[dim]É necessário rodar como Administrador para ver todas as conexões.[/dim]")
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO INESPERADO:[/bold red] {e}")
+# --- Fim da Gaveta 12 ---
+
+# --- Gaveta 13: Ver Conexões Ativas com Nomes (Netstat Lento) ---
+def ver_conexoes_com_nomes():
+    """Mostra conexões ativas, tentando resolver o IP para nome."""
+    console.print(
+        Rule("[bold cyan]Conexões de Rede Ativas (com Resolução de Nomes)[/bold cyan]"))
+    console.print("[bold yellow]Atenção: Este comando pode ser lento...[/bold yellow]")
+
+    try:
+        conexoes = psutil.net_connections(kind='tcp')
+        
+        tabela = Table(title="Conexões TCP Ativas (com Nomes)", border_style="dim")
+        tabela.add_column("Endereço Local", style="cyan")
+        tabela.add_column("Endereço Remoto", style="magenta")
+        tabela.add_column("Porta Remota", style="yellow")
+        tabela.add_column("Status", style="green")
+
+        if not conexoes:
+            console.print("[dim]Nenhuma conexão TCP ativa encontrada.[/dim]")
+            return
+
+        for conn in conexoes:
+            ip_local, porta_local = conn.laddr if conn.laddr else ("*", "*")
+            ip_remoto, porta_remota = conn.raddr if conn.raddr else ("*", "*")
+            
+            nome_remoto_final = str(ip_remoto)
+            
+            # --- A MÁGICA DA TRADUÇÃO ---
+            if ip_remoto not in ("*", "127.0.0.1", ""):
+                try:
+                    # Tenta "traduzir" o IP.
+                    nome_host = socket.gethostbyaddr(ip_remoto)[0]
+                    nome_remoto_final = f"{nome_host} ({ip_remoto})"
+                # A CORREÇÃO FINAL: Pegar todos os erros de socket/sistema
+                except (socket.gaierror, socket.timeout, OSError): 
+                    # Se falhar (host não encontrado, timeout), simplesmente pula
+                    pass 
+            # --- FIM DA MÁGICA ---
+
+            tabela.add_row(
+                f"{ip_local}:{porta_local}", # Juntei o local para caber mais
+                nome_remoto_final,
+                str(porta_remota),
+                str(conn.status)
+            )
+        
+        console.print(tabela)
+
+    except psutil.AccessDenied:
+        console.print("\n[bold red]ERRO: Acesso Negado![/bold red]")
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO INESPERADO:[/bold red] {e}")
+# --- Fim da Gaveta 13 ---
+
+# --- Gaveta 14: Ver Processos Gulosos ---
+def verificar_processos_top(ordenar_por='cpu'):
+    console.print(Rule("[bold cyan]Top 5 Processos por Uso de CPU[/bold cyan]"))
+    
+    try:
+        # --- FIX: CRIAR A LINHA DE BASE (DELTA) ---
+        # 1. Chamamos uma vez para estabelecer o "Ponto A" (Estado Inicial)
+        psutil.cpu_percent(interval=None) 
+        
+        # 2. Esperamos um instante para que os processos usem a CPU
+        time.sleep(0.1) 
+        # ------------------------------------------
+
+        processos = []
+        # O resto do loop continua igual, mas agora o p.cpu_percent()
+        # vai medir a diferença no último 0.1 segundo, dando um valor real.
+        for p in psutil.process_iter(['name', 'cpu_percent', 'memory_info']):
+            try:
+                processos.append({
+                    'name': p.name(),
+                    'cpu': p.cpu_percent(interval=None), 
+                    'rss_mb': p.memory_info().rss / (1024 * 1024) 
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        
+        
+        # Ordena a lista pelo uso da CPU (do maior para o menor)
+        processos.sort(key=lambda x: x['cpu'], reverse=True)
+        
+        # Prepara a tabela
+        tabela = Table(title="Processos Mais Ativos (Último Segundo)", border_style="dim")
+        tabela.add_column("CPU %", style="red", justify="right")
+        tabela.add_column("RAM (MB)", style="magenta", justify="right")
+        tabela.add_column("Nome do Processo", style="cyan")
+        
+        # Adiciona os 5 primeiros na tabela
+        for p in processos[:5]:
+            cpu_style = "bold red" if p['cpu'] > 50 else "yellow"
+            tabela.add_row(
+                f"{p['cpu']:.1f}", 
+                f"{p['rss_mb']:.0f}", 
+                p['name'],
+                style=cpu_style
+            )
+        
+        console.print(tabela)
+
+    except Exception as e:
+        console.print(f"\n[bold red]ERRO INESPERADO AO LER PROCESSOS:[/bold red] {e}")
+# --- Fim da Gaveta 14 ---
 
 
-# --- Loop Principal ---
+# --- Loop Principal (ATUALIZADO) ---
 while True:
     opcao = desenhar_menu()
 
-    if opcao == '1':
+    if opcao == '0':
+        checkup_geral()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '1':
         dispositivo = DISPOSITIVOS['servidor']
         pingar_servidor(dispositivo['ip'], dispositivo['nome'])
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '2':
-        dispositivo = DISPOSITIVOS['impressora_fiscal']
-        pingar_servidor(dispositivo['ip'], dispositivo['nome'])
+        pingar_dispositivo_por_tipo(prefixo_chave="imp", tipo_nome="Impressora")
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '3':
-        num_pdv = console.input(
-            "\nQual o número do PDV? (ex: 1, 2...): ").strip()
-        chave_pdv = f"pdv{num_pdv}"
-
-        if chave_pdv in DISPOSITIVOS:
-            dispositivo = DISPOSITIVOS[chave_pdv]
-            pingar_servidor(dispositivo['ip'], dispositivo['nome'])
-        else:
-            console.print(
-                f"\n[bold red]ERRO: PDV '{num_pdv}' não cadastrado![/bold red]")
-
+        pingar_dispositivo_por_tipo(prefixo_chave="pdv", tipo_nome="PDV")
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '4':
-        ver_meu_ip()
+        verificar_sistema_local()
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '5':
-        caminho = console.input(
-            "\nDigite o caminho a verificar (ex: C: ou \\\\Servidor\\C$): ").strip()
+        testar_porta()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '6': # <--- NOVO
+        verificar_processos_top()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '7': # <--- MUDOU NÚMERO
+        caminho = console.input("\nDigite o caminho a verificar (ex: C: ou \\\\Servidor\\C$): ").strip()
         verificar_espaco_disco(caminho if caminho else 'C:')
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
-    elif opcao == '6':
-        limpar_temporarios()
-        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
-
-    elif opcao == '7':
+    elif opcao == '8':
         limpar_cache_dns()
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
-    elif opcao == '8':
+    elif opcao == '9':
         renovar_ip()
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
-
-    elif opcao == '9':
+    
+    elif opcao == '10':
         gerenciar_spooler()
 
-    elif opcao == '10':
-        break
+    elif opcao == '11': 
+        ver_conexoes_rede()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '12': 
+        ver_conexoes_com_nomes()
+        console.input("\n[dim]Pressione Enter para voltar...[/dim]")
+
+    elif opcao == '13': 
+        break # Sair
 
     else:
         console.print("\n[red]Opção inválida![/red]")
