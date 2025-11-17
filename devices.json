@@ -1,0 +1,14 @@
+{
+    "pdv01": {
+        "ip": "192.168.1.7",
+        "nome": "CAIXA 01"
+    },
+    "servidor_principal": {
+        "ip": "192.168.1.8",
+        "nome": "Servidor ERP"
+    },
+    "imp_a\u00e7ougue": {
+        "ip": "192.168.1.5",
+        "nome": "IMPRESSORA FISCAL A\u00c7OUGUE"
+    }
+}
