@@ -11,6 +11,8 @@ import datetime
 import wmi
 import socket
 import json
+import asyncio
+import subprocess
 
 console = Console()
 
@@ -65,9 +67,7 @@ def desenhar_menu():
     os.system('cls' if os.name == 'nt' else 'clear')
 
     console.print(
-        Rule("[bold cyan]SysAdmin Helper 3.0[/bold cyan]", style="cyan"))
-    console.print(
-        Rule("[bold white]Painel Rápido - Auxiliar de TI (Atacado/Varejo)[/bold white]"))
+        Rule("[bold cyan]SysAdmin Helper 1.0[/bold cyan]", style="cyan"))
 
     menu_verificacao = (
         "[dim]--- Verificação Rápida ---\n"
@@ -171,40 +171,65 @@ def gerenciar_mapa():
             time.sleep(1)
 # --- Fim da gaveta 3 ---#
 
-# --- Gaveta 4 (Pinga todos os dispositivos do mapa de rede) ---#
+# --- Gaveta 4 (Auxiliar): Ping Assíncrono ---
 
 
-def checkup_geral():
-    """Roda um ping em TODOS os dispositivos cadastrados no MAPA DE REDE."""
+async def pingar_host_async(ip, nome):
+    """Função auxiliar que pinga UM host de forma assíncrona."""
+    # Prepara o comando universal (Windows/Linux)
+    comando_ping = f"ping -n 2 {ip}" if os.name == 'nt' else f"ping -c 2 {ip}"
+
+    # Executa o comando no shell "por baixo dos panos"
+    processo = await asyncio.create_subprocess_shell(
+        f"{comando_ping} > {os.devnull} 2>&1",
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+
+    # Espera o processo de ping terminar
+    await processo.wait()
+
+    # Retorna o resultado (nome, ip, status)
+    if processo.returncode == 0:
+        return (nome, ip, "[bold green]ONLINE[/bold green]")
+    else:
+        return (nome, ip, "[bold red]FALHA[/bold red]")
+# --- Fim da Gaveta Auxiliar ---
+
+
+# --- GAVETA 0: Check-up Geral (VERSÃO ASSÍNCRONA) ---
+async def checkup_geral():
+    """Roda um ping em TODOS os dispositivos SIMULTANEAMENTE."""
     console.print(
-        Rule("[bold cyan]Iniciando Check-up Geral da Loja[/bold cyan]"))
+        Rule("[bold cyan]Iniciando Check-up Geral Assíncrono[/bold cyan]"))
+    console.print(
+        "[yellow]Aguarde, pingando todos os dispositivos ao mesmo tempo...[/yellow]")
 
     tabela_status = Table(title="Status da Rede", border_style="dim")
     tabela_status.add_column("Dispositivo", style="cyan", width=30)
     tabela_status.add_column("IP", style="magenta", width=15)
     tabela_status.add_column("Status", style="white")
 
-    falhas = 0
-
     if not DISPOSITIVOS:
         console.print(
             "[yellow]O mapa de rede está vazio. Adicione dispositivos na Opção 14.[/yellow]")
         return
 
+    # 1. Cria a lista de "tarefas" a fazer (uma para cada dispositivo)
+    tarefas = []
     for chave, dispositivo in DISPOSITIVOS.items():
-        ip = dispositivo['ip']
-        nome = dispositivo['nome']
+        tarefas.append(pingar_host_async(
+            dispositivo['ip'], dispositivo['nome']))
 
-        console.print(f"\n[yellow]Testando:[/yellow] {nome} ({ip})...")
+    # 2. Executa TODAS as tarefas ao mesmo tempo
+    # 'asyncio.gather' espera todas terminarem e coleta os resultados
+    resultados = await asyncio.gather(*tarefas)
 
-        comando_ping = f"ping -n 2 {ip}" if os.name == 'nt' else f"ping -c 2 {ip}"
-
-        resultado = os.system(f"{comando_ping} > {os.devnull} 2>&1")
-
-        if resultado == 0:
-            tabela_status.add_row(nome, ip, "[bold green]ONLINE[/bold green]")
-        else:
-            tabela_status.add_row(nome, ip, "[bold red]FALHA[/bold red]")
+    # 3. Processa os resultados (que chegam todos de uma vez)
+    falhas = 0
+    for nome, ip, status in resultados:
+        tabela_status.add_row(nome, ip, status)
+        if "FALHA" in status:
             falhas += 1
 
     console.print(Rule("[bold cyan]Relatório do Check-up[/bold cyan]"))
@@ -216,7 +241,7 @@ def checkup_geral():
     else:
         console.print(
             f"\n[bold green]Tudo Certo![/bold green] Todos os dispositivos críticos estão online.")
-# --- Fim da gaveta 4 ---#
+# --- Fim da Gaveta 4 ---
 
 # --- Gaveta 5 (Função que executa o ping individual) ---#
 
@@ -462,41 +487,66 @@ def verificar_sistema_local():
 # --- Fim da gaveta 10 ---#
 
 
-# --- Gaveta 11 (Limpa o cache de DNS do Windows) ---#
+# --- Gaveta 11: Limpar DNS ---
 def limpar_cache_dns():
-    """Roda 'ipconfig /flushdns' no Windows."""
+    """Roda 'ipconfig /flushdns' no Windows (modo silencioso)."""
     console.print("\n[bold yellow]Limpando o cache DNS...[/bold yellow]")
+
     if os.name == 'nt':
-        resultado = os.system("ipconfig /flushdns")
-        if resultado == 0:
+        try:
+            # Substitui os.system por subprocess.run para rodar silenciosamente
+            resultado = subprocess.run(
+                ["ipconfig", "/flushdns"],
+                capture_output=True,  # Não mostra a saída no console
+                text=True,
+                check=True,  # Dá erro se o comando falhar
+                shell=True  # Necessário no Windows para 'ipconfig'
+            )
+
+            # Se 'check=True' passou, o resultado foi 0
             console.print(
                 "\n[bold green]SUCESSO![/bold green] O cache DNS foi limpo.")
-        else:
+
+        except (subprocess.CalledProcessError, FileNotFoundError):
             console.print(
-                "\n[bold red]FALHA![/bold red] Não foi possível limpar o cache.")
+                "\n[bold red]FALHA![/bold red] Não foi possível executar o 'ipconfig /flushdns'.")
     else:
         console.print(
             "\n[bold red]ERRO:[/bold red] Este comando só funciona no Windows.")
+# --- Fim da Gaveta 11 ---
 
 
-# --- Fim da gaveta 11 ---#
-
-
-# --- Gaveta 12 (Libera e renova o IP local) ---#
+# --- Gaveta 12: Renovar IP ---
 def renovar_ip():
-    """Roda 'ipconfig /release' e '/renew' no Windows."""
+    """Roda 'ipconfig /release' e '/renew' no Windows (modo silencioso)."""
     if os.name == 'nt':
-        console.print(
-            "\n[bold yellow]Liberando o IP (release)...[/bold yellow]")
-        os.system("ipconfig /release")
-        console.print("\n[bold yellow]Renovando o IP (renew)...[/bold yellow]")
-        os.system("ipconfig /renew")
-        console.print(
-            "\n[bold green]SUCESSO![/bold green] Processo de renovação de IP concluído.")
+        try:
+            console.print(
+                "\n[bold yellow]Liberando o IP (release)...[/bold yellow]")
+            # Roda o /release silenciosamente
+            subprocess.run(
+                ["ipconfig", "/release"],
+                capture_output=True, text=True, check=True, shell=True
+            )
+
+            console.print(
+                "\n[bold yellow]Renovando o IP (renew)...[/bold yellow]")
+            # Roda o /renew silenciosamente
+            subprocess.run(
+                ["ipconfig", "/renew"],
+                capture_output=True, text=True, check=True, shell=True
+            )
+
+            console.print(
+                "\n[bold green]SUCESSO![/bold green] Processo de renovação de IP concluído.")
+
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            console.print(
+                "\n[bold red]FALHA![/bold red] Não foi possível executar os comandos de IP.")
     else:
         console.print(
             "\n[bold red]ERRO:[/bold red] Este comando só funciona no Windows.")
-# --- Fim da gaveta 12 ---#
+# --- Fim da Gaveta 12 ---
 
 
 # --- Gaveta 13 (Limpa a fila de impressão do Windows) ---#
@@ -864,7 +914,8 @@ while True:
     opcao = desenhar_menu()
 
     if opcao == '0':
-        checkup_geral()
+        # asyncio.run() é o "botão" que liga o motor assíncrono
+        asyncio.run(checkup_geral())
         console.input("\n[dim]Pressione Enter para voltar...[/dim]")
 
     elif opcao == '1':
