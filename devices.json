@@ -1,14 +1,47 @@
 {
     "pdv01": {
-        "ip": "192.168.1.7",
-        "nome": "CAIXA 01"
-    },
-    "servidor_principal": {
         "ip": "192.168.1.8",
-        "nome": "Servidor ERP"
+        "nome": "CAIXA 01",
+        "grupo": "CAIXAS"
     },
-    "imp_a\u00e7ougue": {
+    "servidor": {
+        "ip": "192.168.1.9",
+        "nome": "SERVIDOR ERP",
+        "grupo": "SERVIDOR"
+    },
+    "servidor_db": {
         "ip": "192.168.1.5",
-        "nome": "IMPRESSORA FISCAL A\u00c7OUGUE"
+        "nome": "SERVIDOR SLQ",
+        "grupo": "SERVIDOR"
+    },
+    "impressora": {
+        "ip": "192.168.1.2",
+        "nome": "IMPRESSORA 02",
+        "grupo": "IMPRESSORA"
+    },
+    "pdv": {
+        "ip": "192.168.1.3",
+        "nome": "pdv02",
+        "grupo": "CAIXAS"
+    },
+    "impressora_01": {
+        "ip": "192.168.1.4",
+        "nome": "IMPRESSORA 01",
+        "grupo": "IMPRESSORA"
+    },
+    "pdv05": {
+        "ip": "192.168.1.10",
+        "nome": "CAIXA 05",
+        "grupo": "CAIXAS"
+    },
+    "impressora_05": {
+        "ip": "192.168.1.20",
+        "nome": "IMPRESSORA HORTFRUT",
+        "grupo": "IMPRESSORA"
+    },
+    "servidor_sala01": {
+        "ip": "192.168.1.52",
+        "nome": "SERVIDOR SALA 01",
+        "grupo": "SERVIDORES"
     }
 }
