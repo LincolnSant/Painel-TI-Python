@@ -1,18 +1,1 @@
-{
-    "pdv_01": {
-        "ip": "192.168.1.5",
-        "nome": "CAIXA 01"
-    },
-    "servidor_principal": {
-        "ip": "192.168.1.7",
-        "nome": "SERVIDOR ERP"
-    },
-    "imp_acougue": {
-        "ip": "192.168.1.8",
-        "nome": "IMPRESSORA ACOUGUE"
-    },
-    "pdv_02": {
-        "ip": "192.168.0.2",
-        "nome": "CAIXA 02"
-    }
-}
+{}

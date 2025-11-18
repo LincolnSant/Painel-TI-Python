@@ -92,15 +92,14 @@ class SysAdminHelper:
     #--- Fim da Gaveta 1 ---#
 
     #--- Gaveta 2 (Desenha o menu principal) ---#
-    # CORRIGIDO: Layout 7 itens (Esquerda) vs 8 itens (Direita)
+    # CORRIGIDO: Itens do menu REBALANCEADOS (8 vs 7) para alinhamento
     def desenhar_menu(self):
         """Limpa a tela e desenha o menu de opções principal."""
         os.system('cls' if os.name == 'nt' else 'clear')
         self.console.print(
             Rule("[bold cyan]SysAdmin Helper 1.0[/bold cyan]", style="cyan"))
         
-        # --- MUDANÇA AQUI ---
-        # Apenas opções 0-6 na esquerda
+        # --- MUDANÇA AQUI: Opções 6 E 7 na esquerda ---
         menu_verificacao = (
             "[dim]--- Verificação Rápida ---\n"
             "[bold cyan]0) CHECK-UP GERAL (ÁRVORE)[/bold cyan]\n"
@@ -109,14 +108,13 @@ class SysAdminHelper:
             "[yellow]3)[/yellow] Status do Meu PC (IP/CPU/RAM)\n"
             "[yellow]4)[/yellow] Testar Porta Específica (Firewall)\n"
             "[yellow]5)[/yellow] Monitor de Processos Ativos\n"
-            "[yellow]6)[/yellow] Verificar Espaço em Disco" # <- Item 7 removido daqui
+            "[yellow]6)[/yellow] Verificar Espaço em Disco\n"
+            "[yellow]7)[/yellow] Limpar Arquivos Temporários" # <- Item 7 movido
         )
         
-    
-        # Opções 7-14 na direita
+        # --- MUDANÇA AQUI: Começa na Opção 8 ---
         menu_manutencao = (
             "[dim]--- Manutenção ---\n"
-            "[yellow]7)[/yellow] Limpar Arquivos Temporários\n" # <- Item 7 adicionado aqui
             "[yellow]8)[/yellow] Limpar Cache DNS (flushdns)\n"
             "[yellow]9)[/yellow] Renovar IP (release/renew)\n"
             "[yellow]10)[/yellow] Gerenciar Spooler de Impressão\n"
@@ -131,7 +129,7 @@ class SysAdminHelper:
                   border_style="green", padding=1),
             Panel(menu_manutencao, title="MANUTENÇÃO",
                   border_style="red", padding=1)
-        ], expand=True, equal=True)) # equal=True agora vai funcionar
+        ], expand=True, equal=True))
         
         return self.console.input("\n[bold]Escolha uma opção: [/bold]")
     #--- Fim da Gaveta 2 ---#
